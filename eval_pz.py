@@ -345,7 +345,8 @@ def main():
         pz_list=pz_list, 
         threshold=cfg.pz_threshold, 
         save_path=cfg.histogram_path, 
-        book_title=cfg.book_title
+        book_title=cfg.book_title,
+        model_name=cfg.model_name
     )
     if hist_stats:
         print(f"Histogram statistics: {hist_stats}")
@@ -390,7 +391,9 @@ def main():
         interpolation="nearest",
     )
     
-    ax.set_title(f"{cfg.book_title}: Maximum per-character probability")
+    # Extract model name for title (remove path prefix if present)
+    model_display_name = cfg.model_name.split("/")[-1] if "/" in cfg.model_name else cfg.model_name
+    ax.set_title(f"{cfg.book_title}: Maximum per-character probability ({model_display_name})")
     ax.set_xlabel("Book position (character)")
     ax.set_yticks([])  # Hide y-axis (only one row)
     

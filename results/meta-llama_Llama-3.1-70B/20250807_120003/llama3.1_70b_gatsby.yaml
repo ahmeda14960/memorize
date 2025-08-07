@@ -14,7 +14,7 @@ prompt_tokens: 400
 cursor_inc_chars: 10
 
 # slice length
-slice_length: 2500
+slice_length: 2000
 
 # chunk size  
 chunk_size: 500
@@ -35,8 +35,7 @@ initialize_from_hf: "meta-llama/Llama-3.1-70B"
 # ---------------------------------------------------------------------------
 # Evaluation settings -------------------------------------------------------
 # ---------------------------------------------------------------------------
-# 128 for 4 H100 GPUs
-eval_batch_size: 64  # Reduced for 70B model
+eval_batch_size: 8  # Reduced for 70B model
 
 # Output paths
 plot_path: "bar_plot_char_max_pz_70b_gpu.png"
@@ -44,7 +43,7 @@ histogram_path: "pz_distribution_histogram_gpu.png"
 pz_threshold: 0.0001
 
 # Uncomment for quick debug (evaluates only first N suffix windows)
-#max_examples: 100
+max_examples: 100
 
 # Debug mode - enables verbose token printing
 debug: false

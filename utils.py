@@ -34,7 +34,7 @@ __all__ = [
     "sliding_lm_examples",
 ]
 
-def create_pz_histogram_linear(pz_list: List[float], threshold: float, save_path: str, book_title: str = "Book"):
+def create_pz_histogram_linear(pz_list: List[float], threshold: float, save_path: str, book_title: str = "Book", model_name: str = "Llama 3.1 70B"):
     """
     Create a histogram of p_z values matching the style from the reference codebase.
     Uses dynamic bin calculation and styling similar to make_pz_dist_plot.
@@ -88,7 +88,9 @@ def create_pz_histogram_linear(pz_list: List[float], threshold: float, save_path
 
     # Set title to match the reference style
     threshold_percent = threshold * 100
-    ax.set_title(f"{book_title}:\nDistribution of $p_z$ (≥ {threshold_percent:.2f}%) for Llama 3.1 70B", 
+    # Extract model name for title (remove path prefix if present)
+    model_display_name = model_name.split("/")[-1] if "/" in model_name else model_name
+    ax.set_title(f"{book_title}:\nDistribution of $p_z$ (≥ {threshold_percent:.2f}%) for {model_display_name}", 
                 fontsize=14, fontweight="bold")
 
     # Remove grid for cleaner look like reference
@@ -118,7 +120,7 @@ def create_pz_histogram_linear(pz_list: List[float], threshold: float, save_path
 # -----------------------------------------------------------------------------
 
 # Add this function after the main function or before it
-def create_pz_histogram(pz_list: List[float], threshold: float, save_path: str, book_title: str = "Book"):
+def create_pz_histogram(pz_list: List[float], threshold: float, save_path: str, book_title: str = "Book", model_name: str = "Llama 3.1 70B"):
     """
     Create a histogram of p_z values with a threshold filter.
 
@@ -160,7 +162,9 @@ def create_pz_histogram(pz_list: List[float], threshold: float, save_path: str, 
 
     # Set title
     threshold_percent = threshold * 100
-    ax.set_title(f"{book_title}: Distribution of p_z (≥ {threshold_percent:.3f}%)", fontsize=14, fontweight="bold")
+    # Extract model name for title (remove path prefix if present)
+    model_display_name = model_name.split("/")[-1] if "/" in model_name else model_name
+    ax.set_title(f"{book_title}: Distribution of p_z (≥ {threshold_percent:.3f}%) for {model_display_name}", fontsize=14, fontweight="bold")
 
     # Add grid for better readability
     ax.grid(True, alpha=0.3)
@@ -323,7 +327,6 @@ def chunk_text_to_sliding_window_token_chunks(
         start_idx = text_cursor
         end_idx_plus_one = min(text_cursor + slice_length, text_len)
         text_slice = text[start_idx:end_idx_plus_one]
-
         enc = tokenizer(text_slice, add_special_tokens=False, return_attention_mask=True)
         input_ids: list[int] = enc["input_ids"][:chunk_size]
         attention_mask: list[int] = enc.get("attention_mask", [1] * len(input_ids))[:chunk_size]

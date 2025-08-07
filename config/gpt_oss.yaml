@@ -8,7 +8,7 @@ book_title: "gatsby"
 txt_path: "books/gatsby.txt"
 
 # How many tokens are taken as the prompt (first half of window).
-prompt_tokens: 50
+prompt_tokens: 400
 
 # Slide the character cursor by this many chars between windows.
 cursor_inc_chars: 10
@@ -17,7 +17,7 @@ cursor_inc_chars: 10
 slice_length: 2000
 
 # chunk size  
-chunk_size: 100
+chunk_size: 500
 
 # ---------------------------------------------------------------------------
 # Tokenizer ------------------------------------------------------------------

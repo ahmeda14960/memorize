@@ -36,7 +36,7 @@ initialize_from_hf: "meta-llama/Llama-3.1-70B"
 # Evaluation settings -------------------------------------------------------
 # ---------------------------------------------------------------------------
 # 128 for 4 H100 GPUs
-eval_batch_size: 64  # Reduced for 70B model
+eval_batch_size: 128  # Reduced for 70B model
 
 # Output paths
 plot_path: "bar_plot_char_max_pz_70b_gpu.png"
