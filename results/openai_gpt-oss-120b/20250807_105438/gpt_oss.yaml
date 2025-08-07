@@ -22,22 +22,24 @@ chunk_size: 100
 # ---------------------------------------------------------------------------
 # Tokenizer ------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-tokenizer_name: meta-llama/Llama-3.1-8B
+tokenizer_name: openai/gpt-oss-120b
+
+dtype: "bfloat16"
 
 # ---------------------------------------------------------------------------
 # Model ----------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 # Path to HuggingFace model (local or HF hub)
-initialize_from_hf: "meta-llama/Llama-3.1-70B"
+initialize_from_hf: "openai/gpt-oss-120b"
 
 # ---------------------------------------------------------------------------
 # Evaluation settings -------------------------------------------------------
 # ---------------------------------------------------------------------------
-eval_batch_size: 8  # Reduced for 70B model
+eval_batch_size: 1  # Reduced for 70B model
 
 # Output paths
-plot_path: "bar_plot_char_max_pz_70b_gpu.png"
-histogram_path: "pz_distribution_histogram_gpu.png"
+plot_path: "bar_plot_char_max_pz_gptoss_gpu.png"
+histogram_path: "pz_distribution_histogram_gptoss_gpu.png"
 pz_threshold: 0.0001
 
 # Uncomment for quick debug (evaluates only first N suffix windows)

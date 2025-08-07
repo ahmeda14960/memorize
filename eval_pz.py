@@ -8,7 +8,9 @@ import argparse
 import logging
 import math
 import pathlib
+import shutil
 from dataclasses import dataclass
+from datetime import datetime
 from typing import List, Optional, Tuple
 import yaml
 
@@ -22,7 +24,8 @@ import matplotlib.pyplot as plt
 from utils import (
     chunk_text_to_sliding_window_token_chunks,
     compute_max_extraction_rates, 
-    create_pz_histogram
+    create_pz_histogram,
+    create_pz_histogram_linear
 )
 
 logger = logging.getLogger(__name__)
@@ -46,17 +49,19 @@ class GPUEvalConfig:
     
     # Inference settings
     eval_batch_size: int = 8
-    torch_dtype: str = "bfloat16"  # or "float16", "float32"
+    torch_dtype: str = "float32"  # or "float16", "float32"
     device_map: str = "auto"  # or "balanced", "sequential"
     max_memory: Optional[dict] = None
     
     # Output
     plot_path: str = "bar_plot_char_max_pz_70b_gpu.png"
     histogram_path: str = "pz_distribution_histogram_gpu.png"
+    pz_data_path: str = "pz_data_gpu.npz"  # Add this line
     pz_threshold: float = 0.0001
     
     # Debug
     max_examples: Optional[int] = None
+    debug: bool = False
 
 
 def load_config(config_path: str) -> GPUEvalConfig:
@@ -91,11 +96,43 @@ def load_config(config_path: str) -> GPUEvalConfig:
     if 'eval_batch_size' in config_dict:
         gpu_config.eval_batch_size = config_dict['eval_batch_size']
     
+    # Precision/dtype
+    if 'dtype' in config_dict:
+        gpu_config.torch_dtype = config_dict['dtype']
+    
+    # Output paths  
+    if 'plot_path' in config_dict:
+        gpu_config.plot_path = config_dict['plot_path']
+    if 'histogram_path' in config_dict:
+        gpu_config.histogram_path = config_dict['histogram_path']
+    if 'pz_threshold' in config_dict:
+        gpu_config.pz_threshold = config_dict['pz_threshold']
+    
     # Debug
     if 'max_examples' in config_dict:
         gpu_config.max_examples = config_dict['max_examples']
+    if 'debug' in config_dict:
+        gpu_config.debug = config_dict['debug']
         
     return gpu_config
+
+
+def create_results_dir(model_name: str, config_path: str) -> pathlib.Path:
+    """Create results directory with model name and timestamp."""
+    # Clean model name for directory
+    safe_model_name = model_name.replace("/", "_").replace(":", "_")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    results_dir = pathlib.Path("results") / safe_model_name / timestamp
+    results_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy config file to results directory
+    config_src = pathlib.Path(config_path)
+    config_dst = results_dir / config_src.name
+    shutil.copy2(config_src, config_dst)
+    print(f"Config copied to: {config_dst}")
+    
+    return results_dir
 
 
 def compute_sequence_log_probs(
@@ -157,11 +194,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_path", type=str, required=True)
     parser.add_argument("--model_name", type=str, help="Override model name")
-    parser.add_argument("--torch_dtype", type=str, default="bfloat16", 
+    parser.add_argument("--torch_dtype", type=str, default=None, 
                        choices=["float32", "float16", "bfloat16"])
     parser.add_argument("--device_map", type=str, default="auto")
     parser.add_argument("--eval_batch_size", type=int, help="Override batch size")
     parser.add_argument("--max_examples", type=int, help="Limit number of examples")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output")
     
     args = parser.parse_args()
     
@@ -180,9 +218,21 @@ def main():
     if args.max_examples:
         cfg.max_examples = args.max_examples
     
+    # Debug mode: CLI overrides config
+    debug = args.debug or cfg.debug
+    
     print(f"Loading model: {cfg.model_name}")
     print(f"Using dtype: {cfg.torch_dtype}")
     print(f"Device map: {cfg.device_map}")
+    
+    # Create results directory and update output paths
+    results_dir = create_results_dir(cfg.model_name, args.config_path)
+    print(f"Results will be saved to: {results_dir}")
+    
+    # Update output paths to use results directory
+    cfg.plot_path = str(results_dir / pathlib.Path(cfg.plot_path).name)
+    cfg.histogram_path = str(results_dir / pathlib.Path(cfg.histogram_path).name)
+    cfg.pz_data_path = str(results_dir / pathlib.Path(cfg.pz_data_path).name)
     
     # Set up logging
     logging.basicConfig(level=logging.INFO)
@@ -195,6 +245,7 @@ def main():
     
     # Load model
     torch_dtype = getattr(torch, cfg.torch_dtype)
+    print(f"Using dtype: {torch_dtype}!!", flush=True)
     model = AutoModelForCausalLM.from_pretrained(
         cfg.model_name,
         torch_dtype=torch_dtype,
@@ -218,6 +269,11 @@ def main():
     
     total_chunks = len(chunks)
     print(f"Total sliding windows: {total_chunks}")
+    if debug:
+        for idx in range(10):
+            print(f"Chunk {idx} is: {chunks[idx]['input_ids']}\n", flush=True)
+            print(f" text length is: {chunks[idx]['text_len']}\n", flush=True)
+            print(f" actual text is: {chunks[idx]['text']}\n", flush=True)
     
     if cfg.max_examples:
         chunks = chunks[:cfg.max_examples]
@@ -240,7 +296,7 @@ def main():
         batch_input_ids = []
         batch_char_ranges = []
         
-        for chunk in batch_chunks:
+        for idx, chunk in enumerate(batch_chunks):
             ids = chunk["input_ids"]
             # Pad to consistent length if needed
             max_len = cfg.chunk_size
@@ -251,8 +307,10 @@ def main():
                 
             batch_input_ids.append(ids)
             batch_char_ranges.append((chunk["start_idx"], chunk["end_idx"]))
+    
+            if debug and idx < 10:
+                print(f"Batch input ids {idx} is: {ids}\n", flush=True)
         
-        # Convert to tensor
         input_ids = torch.tensor(batch_input_ids, dtype=torch.long)
         
         # Move to appropriate device (model should handle this with device_map)
@@ -283,7 +341,7 @@ def main():
     
     # Create histogram using levanter's utility  
     print("Creating p_z histogram...")
-    hist_stats = create_pz_histogram(
+    hist_stats = create_pz_histogram_linear(
         pz_list=pz_list, 
         threshold=cfg.pz_threshold, 
         save_path=cfg.histogram_path, 
@@ -308,6 +366,17 @@ def main():
     print(f"  Chars above 0.5: {np.sum(char_max > 0.5)}")
     print(f"  Chars above 0.9: {np.sum(char_max > 0.9)}")
     print(f"  Total chars: {len(char_max)}")
+
+    # Save pz_list and related data as npz file
+    print("Saving p_z data to npz file...")
+    np.savez(
+        cfg.pz_data_path,
+        pz_values=np.array(pz_list),
+        char_ranges=np.array(char_ranges),
+        char_max_pz=char_max,
+        config_info=np.array([cfg.chunk_size, cfg.prompt_tokens, cfg.cursor_inc_chars, len(raw_text)])
+    )
+    print(f"P_z data saved to: {cfg.pz_data_path}")
     
     # Create character-level heatmap
     print("Creating character-level heatmap...")

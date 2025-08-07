@@ -38,7 +38,7 @@ pip install bitsandbytes>=0.41.0  # For quantization
 ### 1. Basic Usage
 
 ```bash
-python gpu_eval_careless.py \
+python eval_pz.py \
     --config_path config/gpu_eval_70b.yaml \
     --torch_dtype bfloat16
 ```
@@ -46,7 +46,7 @@ python gpu_eval_careless.py \
 ### 2. Custom Model/Settings
 
 ```bash
-python gpu_eval_careless.py \
+python eval_pz.py \
     --config_path config/gpu_eval_70b.yaml \
     --model_name "meta-llama/Llama-3.1-70B-Instruct" \
     --eval_batch_size 4 \
@@ -60,7 +60,7 @@ The tool automatically uses all available GPUs with `device_map="auto"`. For cus
 
 ```bash
 # Use specific GPU distribution
-CUDA_VISIBLE_DEVICES=0,1,2,3 python gpu_eval_careless.py \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python eval_pz.py \
     --config_path config/gpu_eval_70b.yaml \
     --device_map "balanced"
 ```
@@ -85,6 +85,10 @@ initialize_from_hf: "meta-llama/Llama-3.1-70B"
 # Evaluation
 eval_batch_size: 8        # Reduce for larger models
 pz_threshold: 0.0001      # Minimum probability for histogram
+
+# Debug
+debug: false              # Enable verbose token printing
+# max_examples: 100       # Limit evaluation to N examples
 
 # Output
 plot_path: "char_heatmap.png"
@@ -167,10 +171,15 @@ For development and testing:
 
 ```bash
 # Quick test with limited examples
-python gpu_eval_careless.py \
-    --config_path config/gpu_eval_70b.yaml \
-    --max_examples 100 \
-    --eval_batch_size 16
+python eval_pz.py \
+    --config_path config/llama3.1_70b_gatsby.yaml \
+    --eval_batch_size 1 \
+    --max_examples 100
+
+# Enable debug output (verbose token printing)
+python eval_pz.py \
+    --config_path config/llama3.1_70b_gatsby.yaml \
+    --debug
 ```
 
 ## Comparison with Original
@@ -200,4 +209,10 @@ This GPU version maintains identical functionality to the original Levanter impl
 
 # Use quantization (modify code as shown above)
 ```
+
+# NLPRUN
+```
+ nlprun --job-name llama3.1_70b --machine sphinx8 -w /nlp/u/ahmedah/code/memorize/ -a memorize -g 4 -c 16 -r 200G 'python eval_pz.py --config_path config/llama3.1_70b_gatsby.yaml  --eval_batch_size 1 > logs.txt 2>&1'
+```
+
 
